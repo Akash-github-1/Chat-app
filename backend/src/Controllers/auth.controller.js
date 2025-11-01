@@ -4,9 +4,10 @@ import bcrypt from "bcryptjs";
 
 export const signup = async (req , res) => {
     const {fullName, email, password} = req.body;
+    const normalizedEmail=typeof email=== "string" ? email.trim().toLowerCase() : "";
 
     try {
-        if(!fullName || !email || !password){
+        if(!fullName || !normalizedEmail || !password){
             return res.status(400).json ({ message: "All fields are requried"});
         }
         
@@ -16,11 +17,11 @@ export const signup = async (req , res) => {
 
         // check if emails valid : regex
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if(!emailRegex.test(email)){
+        if(!emailRegex.test(normalizedEmail)){
             return res.status(400).json({message: "Invalid email format"});
         }
 
-        const user =await User.findOne({email});
+        const user =await User.findOne({normalizedEmail});
         if (user) return res.status(400).json({message:"Email already exists"});
 
         // password encrept
@@ -34,13 +35,14 @@ export const signup = async (req , res) => {
         });
 
         if(newUser){
-            generateToken(newUser._id,res);
-            await newUser.save();
+            //  Persist user first then issue auth cookie
+            const savedUser = await newUser.save();
+            generateToken(savedUser._id,res);
 
             res.status(201).json({
                 _id:newUser._id,
                 fullName:newUser.fullName,
-                email:newUser.email,
+                email:newUser.normalizedEmail,
                 profilePic:newUser.profilePic,
             });
 
